@@ -267,17 +267,18 @@ local function chase_ui()
                 PAUSED = false
                 mq.cmd('/squelch /nav stop')
             end
-    
         else
+            ImGui.BeginDisabled(Settings.ROLE == 'none' and Settings.CHASE == '')
             if ImGui.Button('Start Following') then
                 if Settings.ROLE ~= 'none' or Settings.CHASE ~= '' then
                     RUNNING = true
                     PAUSED = false
                 end
             end
+            ImGui.EndDisabled()
         end
         
-        helpMarker('Pause or resume chasing')
+        helpMarker('Start or stop chasing')
     
         ImGui.BeginDisabled(not RUNNING)
         
