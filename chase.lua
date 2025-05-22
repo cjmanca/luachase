@@ -164,7 +164,7 @@ local function init_tlo()
 end
 
 local function validate_distance(distance)
-    if distance >= 5 and 300 then
+    if distance >= 5 and distance <= 300 then
         if distance < Settings.STOP_DISTANCE then
             Settings.STOP_DISTANCE = distance / 2
         end
@@ -174,8 +174,12 @@ local function validate_distance(distance)
     end
 end
 
+local function validate_max_afollow_distance(distance)
+    return distance >= 1
+end
+
 local function validate_stop_distance(distance)
-    return distance >= 1 and 300
+    return distance >= 1 and distance <= 300
 end
 
 local function check_distance(x1, y1, x2, y2)
@@ -318,7 +322,7 @@ local function chase_ui()
         local oldDISTANCE = Settings.DISTANCE
         local tmp_distance = ImGui.InputInt('Chase Distance', Settings.DISTANCE)
         helpMarker('Set the distance to begin chasing at. Min=15, Max=300')
-        if validate_distance(tmp_distance) and oldDISTANCE ~= Settings.DISTANCE then
+        if validate_distance(tmp_distance) and oldDISTANCE ~= tmp_distance then
             Settings.DISTANCE = tmp_distance
             SaveConfig()
         end
@@ -326,9 +330,17 @@ local function chase_ui()
         local oldSTOP_DISTANCE = Settings.STOP_DISTANCE
         tmp_distance = ImGui.InputInt('Stop Distance', Settings.STOP_DISTANCE)
         helpMarker('Set the distance to stop chasing at. Min=0, Max='..(Settings.DISTANCE-1))
-        ImGui.PopItemWidth()
-        if validate_stop_distance(tmp_distance) and oldSTOP_DISTANCE ~= Settings.STOP_DISTANCE  then
+        if validate_stop_distance(tmp_distance) and oldSTOP_DISTANCE ~= tmp_distance  then
             Settings.STOP_DISTANCE = tmp_distance
+            SaveConfig()
+        end
+        
+        local oldMAX_AFOLLOW_DISTANCE = Settings.MAX_AFOLLOW_DISTANCE
+        tmp_distance = ImGui.InputInt('Maximum afollow Distance', Settings.MAX_AFOLLOW_DISTANCE)
+        helpMarker('Set the maximum distance to use afollow as a fallback. Min=0')
+        ImGui.PopItemWidth()
+        if validate_max_afollow_distance(tmp_distance) and oldMAX_AFOLLOW_DISTANCE ~= tmp_distance  then
+            Settings.MAX_AFOLLOW_DISTANCE = tmp_distance
             SaveConfig()
         end
     end
@@ -344,6 +356,7 @@ local function print_help()
     print('\ay\t/luachase spawn [pc_id_to_chase]')
     print('\ay\t/luachase distance [10,300]')
     print('\ay\t/luachase stopdistance [0,chase_distance-1]')
+    print('\ay\t/luachase afollowdistance [number]')
     print('\ay\t/luachase pause on|1|true')
     print('\ay\t/luachase pause off|0|false')
     print('\ay\t/luachase unpause')
@@ -370,7 +383,7 @@ local function bind_chase(...)
         SaveConfig()
     elseif key == 'spawn' then
         local tmpSpawn = mq.TLO.Spawn('id '..value)
-        if not tmpSpawn or mq.TLO.Target.Type() ~= 'PC'  then
+        if not tmpSpawn.ID() or tmpSpawn.Type() ~= 'PC'  then
             printf('%sSpawn with ID %s not found', PREFIX, value)
             return
         end
@@ -388,7 +401,7 @@ local function bind_chase(...)
             SaveConfig()
         else
             if not RUNNING then 
-                print('%sNo chase target')
+                printf('%sNo chase target', PREFIX)
             else
                 printf('%sChase Target: \aw%s', PREFIX, Settings.CHASE)
             end
@@ -401,7 +414,7 @@ local function bind_chase(...)
             SaveConfig()
         else
             if not RUNNING then 
-                printf('%sNo chase target', PREFIX, Settings.CHASE)
+                printf('%sNo chase target', PREFIX)
             else
                 printf('%sChase Role: \aw%s', PREFIX, Settings.ROLE)
             end
@@ -426,9 +439,19 @@ local function bind_chase(...)
         else
             printf('%sStop Distance: \aw%s', PREFIX, Settings.STOP_DISTANCE)
         end
+    elseif key == 'afollowdistance' then
+        if tonumber(value) then
+            local tmp_distance = tonumber(value)
+            if validate_max_afollow_distance(tmp_distance) then
+                Settings.MAX_AFOLLOW_DISTANCE = tmp_distance
+                SaveConfig()
+            end
+        else
+            printf('%sMax afollow Distance: \aw%s', PREFIX, Settings.MAX_AFOLLOW_DISTANCE)
+        end
     elseif key == 'pause' then
         if not RUNNING then
-            printf('%sNo chase target', PREFIX, Settings.CHASE)
+            printf('%sNo chase target', PREFIX)
         else
             if value == 'on' or value == '1' or value == 'true' then
                 PAUSED = true
@@ -441,7 +464,7 @@ local function bind_chase(...)
         end
     elseif key == 'unpause' then
         if not RUNNING then
-            printf('%sNo chase target', PREFIX, Settings.CHASE)
+            printf('%sNo chase target', PREFIX)
         else
             PAUSED = false
         end
